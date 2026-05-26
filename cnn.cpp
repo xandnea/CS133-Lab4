@@ -318,6 +318,7 @@ void cnn(float input[1][228][228], float output[16][224][224],
         for (int h = 0; h < 16 * 14;
              h++) { // Note: 16*14 equals 224 (the height dimension)
           for (int w = 0; w < 224; w++) {
+            #pragma HLS PIPELINE II=1
             for (int p = 0; p < 5; p++) {
               for (int q = 0; q < 5; q++) {
 
