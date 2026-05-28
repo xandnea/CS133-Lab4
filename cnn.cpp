@@ -314,21 +314,16 @@ void cnn(float input[1][228][228], float output[16][224][224],
        */
       load_input_S0(input, vinput, j);
 
-      for (int i1 = 0; i1 < 16; i1++) {
-        for (int h = 0; h < 16 * 14;
-             h++) { // Note: 16*14 equals 224 (the height dimension)
-          for (int w = 0; w < 224; w++) {
-            for (int p = 0; p < 5; p++) {
-              for (int q = 0; q < 5; q++) {
-
-                /**
-                 * Compute the effective output channel index.
-                 * i0 selects the outer tile and i1 selects the sub-channel
-                 * within the tile.
-                 */
-                int i = i0 * 16 + i1;
-                output[i1][h][w] +=
-                    weight[i1][j][p][q] * input[0][h + p][w + q];
+      for (int h = 0; h < 224; h++) {
+        for (int w = 0; w < 224; w++) {
+          
+          #pragma HLS PIPELINE II=1
+          
+          for (int p = 0; p < 5; p++) {
+            for (int q = 0; q < 5; q++) {
+              // loop permutation: move i1 to be in kernel (p and q) loop
+              for (int i1 = 0; i1 < 16; i1++) {
+                output[i1][h][w] += weight[i1][j][p][q] * input[0][h + p][w + q];
               }
             }
           }
@@ -394,18 +389,14 @@ void kernel_cnn(float4 vinput[3326976], float1 vweight[1638400],
  * inner loops.
  * TODO: You need to adjust the partitioning factors based on your design
  */
-#pragma HLS ARRAY_PARTITION variable = input cyclic factor = 1 dim = 1
-#pragma HLS ARRAY_PARTITION variable = input cyclic factor = 1 dim = 2
-#pragma HLS ARRAY_PARTITION variable = input cyclic factor = 4 dim = 3
+#pragma HLS ARRAY_PARTITION variable = input cyclic factor = 5 dim = 2
+#pragma HLS ARRAY_PARTITION variable = input cyclic factor = 5 dim = 3
 
-#pragma HLS ARRAY_PARTITION variable = output cyclic factor = 1 dim = 1
-#pragma HLS ARRAY_PARTITION variable = output cyclic factor = 1 dim = 2
-#pragma HLS ARRAY_PARTITION variable = output cyclic factor = 16 dim = 3
+#pragma HLS ARRAY_PARTITION variable = output complete dim = 1
 
-#pragma HLS ARRAY_PARTITION variable = weight cyclic factor = 1 dim = 1
-#pragma HLS ARRAY_PARTITION variable = weight cyclic factor = 1 dim = 2
-#pragma HLS ARRAY_PARTITION variable = weight cyclic factor = 1 dim = 3
-#pragma HLS ARRAY_PARTITION variable = weight cyclic factor = 1 dim = 4
+#pragma HLS ARRAY_PARTITION variable = weight complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = weight complete dim = 3
+#pragma HLS ARRAY_PARTITION variable = weight complete dim = 4
 
   /**
    * Call the main CNN function that performs the actual computation.
