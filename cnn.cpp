@@ -316,13 +316,13 @@ void cnn(float input[1][228][228], float output[16][224][224],
 
       for (int h = 0; h < 224; h++) {
         for (int w = 0; w < 224; w++) {
-          
           #pragma HLS PIPELINE II=1
           
-          for (int p = 0; p < 5; p++) {
-            for (int q = 0; q < 5; q++) {
-              // loop permutation: move i1 to be in kernel (p and q) loop
-              for (int i1 = 0; i1 < 16; i1++) {
+          for (int i1 = 0; i1 < 16; i1++) {
+            #pragma HLS UNROLL
+            for (int p = 0; p < 5; p++) {
+              for (int q = 0; q < 5; q++) {
+                #pragma HLS UNROLL
                 output[i1][h][w] += weight[i1][j][p][q] * input[0][h + p][w + q];
               }
             }
@@ -389,14 +389,17 @@ void kernel_cnn(float4 vinput[3326976], float1 vweight[1638400],
  * inner loops.
  * TODO: You need to adjust the partitioning factors based on your design
  */
+
+ // Output: 16 channels, partition cyclic by 16
+ #pragma HLS ARRAY_PARTITION variable = output cyclic factor = 16 dim = 1
+
+ // Weight: biggest BRAM user, instead of complete use cyclic factor of 16 on 1 dim
+ // Cyclic partitioning to support the sliding 5x5 window
+#pragma HLS ARRAY_PARTITION variable = weight cyclic factor = 8 dim = 1
+
+// Input: cyclic factor 5 for the 5x5 window
 #pragma HLS ARRAY_PARTITION variable = input cyclic factor = 5 dim = 2
 #pragma HLS ARRAY_PARTITION variable = input cyclic factor = 5 dim = 3
-
-#pragma HLS ARRAY_PARTITION variable = output complete dim = 1
-
-#pragma HLS ARRAY_PARTITION variable = weight complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = weight complete dim = 3
-#pragma HLS ARRAY_PARTITION variable = weight complete dim = 4
 
   /**
    * Call the main CNN function that performs the actual computation.
